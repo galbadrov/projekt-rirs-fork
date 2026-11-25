@@ -15,7 +15,7 @@ Workflow [CI/CD](.github/workflows/ci-cd.yml) se zažene ob pull requestu v `mai
 
 Frontend in backend v tej namestitvi uporabljata isti naslov: `VITE_API_URL` je ob gradnji nastavljen na prazen niz, zato zahteve `/api/...` uporabljajo isti izvor. Pri ločenem gostovanju je treba dodatno urediti CORS, piškotke in zaščito pred CSRF.
 
-**Javni naslov aplikacije:** še ni na voljo. Po uspešni namestitvi tukaj dodajte povezavo na Render.
+**Javni naslov aplikacije:** [https://projekt-rirs-fork-bootstrap.onrender.com/](https://projekt-rirs-fork-bootstrap.onrender.com/)
 
 ### Priprava GitHub in Render
 
