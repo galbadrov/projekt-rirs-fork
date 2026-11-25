@@ -1,1 +1,0 @@
-const intentionalLintFailure = 1;
