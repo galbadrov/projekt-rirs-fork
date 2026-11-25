@@ -141,10 +141,10 @@ jobs:
       cancel-in-progress: false
     environment:
       name: production
-      url: ${{ vars.RENDER_APP_URL }}
+      url: https://projekt-rirs-fork-bootstrap.onrender.com/
     env:
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-      RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+      RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v6
