@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 type TicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 type UserRole = "EMPLOYEE" | "TECHNICIAN" | "ADMIN";

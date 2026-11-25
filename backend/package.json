@@ -7,7 +7,10 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint ."
   },
   "keywords": [],
   "type": "module",
@@ -23,14 +26,20 @@
     "pg": "^8.23.1"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
+    "@vitest/coverage-v8": "^5.1.1",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0",
     "prisma": "^7.10.1",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.74.0",
+    "vitest": "^5.1.1"
   }
 }

@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import path from "node:path";
 import cors from "cors";
 import { prisma } from "./db.js";
 import cookieParser from "cookie-parser";
@@ -10,10 +11,10 @@ import { requireAuth, requireRole,} from "./middleware/auth.middleware.js";
 import userRoutes from "./routes/user.routes.js";
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT ?? 3000);
 
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: process.env.FRONTEND_ORIGIN ?? "http://localhost:5173",
   credentials: true,
 }));
 
@@ -68,6 +69,11 @@ app.get(
 );
 
 
-app.listen(PORT, () => {
+if (process.env.FRONTEND_DIR) {
+  const frontendDir = path.resolve(process.env.FRONTEND_DIR);
+  app.use(express.static(frontendDir));
+}
+
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`FixDesk API running on http://localhost:${PORT}`);
 });

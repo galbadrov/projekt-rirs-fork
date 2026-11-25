@@ -4,7 +4,7 @@ import TicketAssignment from "./TicketAssignment";
 import TicketStatusActions from "./TicketStatusActions";
 import TicketComments from "./TicketComments";
 
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 type UserRole = "EMPLOYEE" | "TECHNICIAN" | "ADMIN";
 

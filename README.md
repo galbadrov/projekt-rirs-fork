@@ -1,6 +1,32 @@
 # FixDesk
 
+![CI/CD](https://github.com/galbadrov/projekt-rirs-fork/actions/workflows/ci-cd.yml/badge.svg)
+
 **FixDesk** je spletna aplikacija za upravljanje IT zahtevkov znotraj podjetja ali organizacije. Zaposlenim omogoča prijavo tehničnih težav in spremljanje reševanja, IT tehnikom obravnavo zahtevkov in komunikacijo z zaposlenimi, administratorjem pa dodeljevanje zahtevkov ter pregled nad delom IT podpore. Sistem predvideva tudi samodejno določanje prioritete glede na vpliv in nujnost težave.
+
+## CI/CD in namestitev
+
+Workflow [CI/CD](.github/workflows/ci-cd.yml) se zažene ob pull requestu v `main` in ob pushu na `main`:
+
+- **lint** preveri kodo frontenda in backenda z ESLintom;
+- **build** zgradi oba dela, uporabi predpomnilnik npm in shrani direktorija `dist` ter Docker sliko kot artefakte;
+- **test** zažene teste in shrani poročili o pokritosti kot artefakt `coverage`;
+- **deploy** se po uspešnih predhodnih jobih zažene samo ob pushu na `main`. Prenese že izdelano sliko, jo objavi v GitHub Container Registry in namesti na Render. Job preveri, da namestitev doseže stanje `live`.
+
+Frontend in backend v tej namestitvi uporabljata isti naslov: `VITE_API_URL` je ob gradnji nastavljen na prazen niz, zato zahteve `/api/...` uporabljajo isti izvor. Pri ločenem gostovanju je treba dodatno urediti CORS, piškotke in zaščito pred CSRF.
+
+**Javni naslov aplikacije:** [https://projekt-rirs-fork-bootstrap.onrender.com/](https://projekt-rirs-fork-bootstrap.onrender.com/)
+
+### Priprava GitHub in Render
+
+1. V forku morajo biti omogočeni GitHub Actions. V **Settings → Environments** ustvarite okolje `production`. Zaščita `main` naj zahteva pull request in uspešne preverbe `lint`, `build` in `test`.
+2. Na Render ustvarite PostgreSQL in Web Service na brezplačnem paketu. Brezplačna baza poteče po 30 dneh, spletna storitev pa se po 15 minutah neaktivnosti ustavi. Pri omejitvah in stroških glejte [Render dokumentacijo](https://render.com/docs/free).
+3. Spletna storitev mora biti tipa **Existing Image**, s sliko `ghcr.io/<uporabnik>/<repozitorij>:<oznaka>`. Slika mora obstajati in biti za Render dostopna. Samodejnega deploya iz Git repozitorija ne uporabljamo. Za prvi zagon je treba v GHCR najprej objaviti zagonsko sliko in ji po potrebi nastaviti javno vidnost.
+4. Na Render storitvi nastavite `DATABASE_URL` na notranji URL baze in `JWT_SECRET` na naključno vrednost, dolgo vsaj 32 znakov. Gesel ne dodajajte v repozitorij. Ob zagonu vsebnik izvede migracije in šele nato zažene API ter frontend.
+5. V GitHub okolju `production` nastavite secreta `RENDER_API_KEY` in `RENDER_SERVICE_ID`. API ključ potrebuje pravice za zagon in branje deployev. Token `GITHUB_TOKEN` v jobu objavi izdelano sliko v GHCR. Javni naslov okolja je naveden v workflowu.
+6. Spremembe združite prek pull requesta. Na `main` se po uspešnih preverbah prenese že zgrajen artefakt, objavi slika in sproži Render deploy. Preverite stanje joba, javni URL in `/api/db-health`.
+
+Migracija ustvari tabele, ne pa uporabnikov ali kategorij. Te je treba pred uporabo varno pripraviti v nameščeni bazi. Lokalna seed skripta ustvari oziroma ponastavi tri **testne** račune z enakim geslom, zato ni primerna za produkcijsko okolje.
 
 ## Uporabljene tehnologije
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import "./TicketComments.css";
 
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 type Comment = {
   id: number;
