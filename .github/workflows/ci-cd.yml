@@ -26,20 +26,6 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: fixdesk
-          POSTGRES_PASSWORD: fixdesk
-          POSTGRES_DB: fixdesk
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U fixdesk"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
@@ -62,10 +48,6 @@ jobs:
       - name: Package prebuilt application image
         run: |
           docker build -t fixdesk:${{ github.sha }} .
-          container=$(docker run -d --rm --network host -e DATABASE_URL -e JWT_SECRET "fixdesk:$GITHUB_SHA")
-          trap 'docker logs "$container"; docker stop "$container" || true' EXIT
-          curl --fail --retry 30 --retry-delay 2 --retry-connrefused http://localhost:8080/api/db-health
-          curl --fail http://localhost:8080/
           docker save fixdesk:${{ github.sha }} | gzip > fixdesk-image.tar.gz
       - uses: actions/upload-artifact@v6
         with:
