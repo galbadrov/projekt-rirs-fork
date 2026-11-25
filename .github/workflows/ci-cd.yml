@@ -38,6 +38,20 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: fixdesk
+          POSTGRES_PASSWORD: fixdesk
+          POSTGRES_DB: fixdesk
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fixdesk"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -72,6 +86,10 @@ jobs:
       - name: Package prebuilt application image
         run: |
           docker build -t fixdesk:${{ github.sha }} .
+          container=$(docker run -d --rm --network host -e DATABASE_URL -e JWT_SECRET "fixdesk:$GITHUB_SHA")
+          trap 'docker logs "$container"; docker stop "$container" || true' EXIT
+          curl --fail --retry 30 --retry-delay 2 --retry-connrefused http://localhost:8080/api/db-health
+          curl --fail http://localhost:8080/
           docker save fixdesk:${{ github.sha }} | gzip > fixdesk-image.tar.gz
       - uses: actions/upload-artifact@v6
         with:
@@ -115,23 +133,32 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [lint, build, test]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
     environment:
       name: production
-      url: https://${{ vars.FLY_APP_NAME }}.fly.dev
+      url: ${{ vars.RENDER_APP_URL }}
     env:
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-      FLY_APP_NAME: ${{ vars.FLY_APP_NAME }}
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/download-artifact@v7
         with:
           name: deploy-image
-      - uses: superfly/flyctl-actions/setup-flyctl@master
       - name: Publish and deploy the built image
         run: |
-          test -n "$FLY_API_TOKEN" && test -n "$FLY_APP_NAME"
+          test -n "$RENDER_API_KEY" && test -n "$RENDER_SERVICE_ID"
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
           docker load -i fixdesk-image.tar.gz
-          flyctl auth docker
-          docker tag fixdesk:${{ github.sha }} registry.fly.io/$FLY_APP_NAME:${{ github.sha }}
-          docker push registry.fly.io/$FLY_APP_NAME:${{ github.sha }}
-          flyctl deploy --app "$FLY_APP_NAME" --image registry.fly.io/$FLY_APP_NAME:${{ github.sha }} --config fly.toml
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag "fixdesk:$GITHUB_SHA" "$image:$GITHUB_SHA"
+          docker push "$image:$GITHUB_SHA"
+          echo "RENDER_IMAGE=$image:$GITHUB_SHA" >> "$GITHUB_ENV"
+      - name: Deploy image and wait for Render
+        run: node .github/scripts/render-deploy.mjs

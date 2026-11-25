@@ -9,22 +9,22 @@
 Workflow [CI/CD](.github/workflows/ci-cd.yml) se zažene ob pull requestu v `main` in ob pushu na `main`:
 
 - **lint** preveri kodo frontenda in backenda z ESLintom;
-- **build** zgradi oba dela, uporabi predpomnilnik npm ter shrani njuna `dist` direktorija in Docker sliko kot artefakte;
-- **test** zažene teste obeh delov in shrani poročili o pokritosti kot artefakt `coverage`;
-- **deploy** se po uspešnih predhodnih jobih zažene samo ob pushu na `main`. Prenese že izdelano sliko in jo namesti na Fly.io; pred zagonom nove različice izvede migracije.
+- **build** zgradi oba dela, uporabi predpomnilnik npm in shrani direktorija `dist` ter Docker sliko kot artefakte;
+- **test** zažene teste in shrani poročili o pokritosti kot artefakt `coverage`;
+- **deploy** se po uspešnih predhodnih jobih zažene samo ob pushu na `main`. Prenese že izdelano sliko, jo objavi v GitHub Container Registry in namesti na Render. Job preveri, da namestitev doseže stanje `live`.
 
-Frontend in backend v tej namestitvi uporabljata isti naslov: `VITE_API_URL` je ob gradnji nastavljen na prazen niz, zato se zahteve `/api/...` pošiljajo na isti izvor. Za ločeno gostovanje lahko med gradnjo frontenda nastavite `VITE_API_URL` na javni naslov backenda in na backendu `FRONTEND_ORIGIN` na naslov frontenda. Pri različnih domenah je treba dodatno prilagoditi nastavitve piškotkov in CSRF zaščito.
+Frontend in backend v tej namestitvi uporabljata isti naslov: `VITE_API_URL` je ob gradnji nastavljen na prazen niz, zato zahteve `/api/...` uporabljajo isti izvor. Pri ločenem gostovanju je treba dodatno urediti CORS, piškotke in zaščito pred CSRF.
 
-**Javni naslov aplikacije:** še ni na voljo; po uspešni namestitvi dodajte povezavo `https://<ime-aplikacije>.fly.dev` in preverite njeno delovanje.
+**Javni naslov aplikacije:** še ni na voljo. Po uspešni namestitvi tukaj dodajte povezavo na Render.
 
-### Priprava GitHub in Fly.io
+### Priprava GitHub in Render
 
-1. V forku v zavihku **Actions** omogočite GitHub Actions. V **Settings → Environments** ustvarite okolje `production`.
-2. Na Fly.io ustvarite aplikacijo in PostgreSQL. Na primer `fly apps create <ime-aplikacije>`, `fly mpg create` in `fly mpg attach <cluster-id> -a <ime-aplikacije>`. Preverite pogoje in stroške ponudnika. Povezava ustvari Fly skrivnost `DATABASE_URL`.
-3. V Fly.io nastavite tudi `JWT_SECRET` (naključno vrednost, dolgo vsaj 32 znakov). Skrivnosti naj ne bodo del kode ali Git repozitorija.
-4. V okolju GitHub `production` dodajte secret `FLY_API_TOKEN` za namestitev in variable `FLY_APP_NAME` z imenom Fly aplikacije. JWT in povezava do baze sta izvajalni skrivnosti na Fly.io, token pa je skrivnost GitHub okolja.
-5. Spremembe potisnite na ločeno vejo in ustvarite pull request v `main`. V zaščiti veje zahtevajte pull request in uspešne statusne preverbe `lint`, `build` in `test`. Razpoložljive preverbe se pojavijo po prvem zagonu workflowa.
-6. Za dokaz zaščite v ločenem PR-ju začasno povzročite napako linterja, preverite, da združitev ni mogoča, nato napako popravite in preverite uspešen CI. Po združitvi na `main` preverite job `deploy`, javni naslov in `/api/db-health`.
+1. V forku morajo biti omogočeni GitHub Actions. V **Settings → Environments** ustvarite okolje `production`. Zaščita `main` naj zahteva pull request in uspešne preverbe `lint`, `build` in `test`.
+2. Na Render ustvarite PostgreSQL in Web Service na brezplačnem paketu. Brezplačna baza poteče po 30 dneh, spletna storitev pa se po 15 minutah neaktivnosti ustavi. Pri omejitvah in stroških glejte [Render dokumentacijo](https://render.com/docs/free).
+3. Spletna storitev mora biti tipa **Existing Image**, s sliko `ghcr.io/<uporabnik>/<repozitorij>:<oznaka>`. Slika mora obstajati in biti za Render dostopna. Samodejnega deploya iz Git repozitorija ne uporabljamo. Za prvi zagon je treba v GHCR najprej objaviti zagonsko sliko in ji po potrebi nastaviti javno vidnost.
+4. Na Render storitvi nastavite `DATABASE_URL` na notranji URL baze in `JWT_SECRET` na naključno vrednost, dolgo vsaj 32 znakov. Gesel ne dodajajte v repozitorij. Ob zagonu vsebnik izvede migracije in šele nato zažene API ter frontend.
+5. V GitHub okolju `production` nastavite secret `RENDER_API_KEY` in spremenljivki `RENDER_SERVICE_ID` ter `RENDER_APP_URL`. API ključ potrebuje pravice za zagon in branje deployev. Token `GITHUB_TOKEN` v jobu objavi izdelano sliko v GHCR.
+6. Spremembe združite prek pull requesta. Na `main` se po uspešnih preverbah prenese že zgrajen artefakt, objavi slika in sproži Render deploy. Preverite stanje joba, javni URL in `/api/db-health`.
 
 Migracija ustvari tabele, ne pa uporabnikov ali kategorij. Te je treba pred uporabo varno pripraviti v nameščeni bazi. Lokalna seed skripta ustvari oziroma ponastavi tri **testne** račune z enakim geslom, zato ni primerna za produkcijsko okolje.
 
