@@ -1,0 +1,137 @@
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  DATABASE_URL: postgresql://fixdesk:fixdesk@localhost:5432/fixdesk
+  JWT_SECRET: ci-only-secret-at-least-32-characters-long
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npx prisma generate --config prisma7.config.ts
+        working-directory: backend
+      - run: npm run lint
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run lint
+        working-directory: frontend
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npx prisma generate --config prisma7.config.ts
+        working-directory: backend
+      - run: npm run build
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env:
+          VITE_API_URL: ''
+      - uses: actions/upload-artifact@v6
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v6
+        with:
+          name: backend-dist
+          path: backend/dist/
+          if-no-files-found: error
+      - name: Package prebuilt application image
+        run: |
+          docker build -t fixdesk:${{ github.sha }} .
+          docker save fixdesk:${{ github.sha }} | gzip > fixdesk-image.tar.gz
+      - uses: actions/upload-artifact@v6
+        with:
+          name: deploy-image
+          path: fixdesk-image.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npx prisma generate --config prisma7.config.ts
+        working-directory: backend
+      - run: npm run test:coverage
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run test:coverage
+        working-directory: frontend
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage
+          path: |
+            backend/coverage/
+            frontend/coverage/
+          if-no-files-found: warn
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, build, test]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.FLY_APP_NAME }}.fly.dev
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      FLY_APP_NAME: ${{ vars.FLY_APP_NAME }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v7
+        with:
+          name: deploy-image
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Publish and deploy the built image
+        run: |
+          test -n "$FLY_API_TOKEN" && test -n "$FLY_APP_NAME"
+          docker load -i fixdesk-image.tar.gz
+          flyctl auth docker
+          docker tag fixdesk:${{ github.sha }} registry.fly.io/$FLY_APP_NAME:${{ github.sha }}
+          docker push registry.fly.io/$FLY_APP_NAME:${{ github.sha }}
+          flyctl deploy --app "$FLY_APP_NAME" --image registry.fly.io/$FLY_APP_NAME:${{ github.sha }} --config fly.toml

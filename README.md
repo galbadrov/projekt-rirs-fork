@@ -1,6 +1,32 @@
 # FixDesk
 
+![CI/CD](https://github.com/galbadrov/projekt-rirs-fork/actions/workflows/ci-cd.yml/badge.svg)
+
 **FixDesk** je spletna aplikacija za upravljanje IT zahtevkov znotraj podjetja ali organizacije. Zaposlenim omogoča prijavo tehničnih težav in spremljanje reševanja, IT tehnikom obravnavo zahtevkov in komunikacijo z zaposlenimi, administratorjem pa dodeljevanje zahtevkov ter pregled nad delom IT podpore. Sistem predvideva tudi samodejno določanje prioritete glede na vpliv in nujnost težave.
+
+## CI/CD in namestitev
+
+Workflow [CI/CD](.github/workflows/ci-cd.yml) se zažene ob pull requestu v `main` in ob pushu na `main`:
+
+- **lint** preveri kodo frontenda in backenda z ESLintom;
+- **build** zgradi oba dela, uporabi predpomnilnik npm ter shrani njuna `dist` direktorija in Docker sliko kot artefakte;
+- **test** zažene teste obeh delov in shrani poročili o pokritosti kot artefakt `coverage`;
+- **deploy** se po uspešnih predhodnih jobih zažene samo ob pushu na `main`. Prenese že izdelano sliko in jo namesti na Fly.io; pred zagonom nove različice izvede migracije.
+
+Frontend in backend v tej namestitvi uporabljata isti naslov: `VITE_API_URL` je ob gradnji nastavljen na prazen niz, zato se zahteve `/api/...` pošiljajo na isti izvor. Za ločeno gostovanje lahko med gradnjo frontenda nastavite `VITE_API_URL` na javni naslov backenda in na backendu `FRONTEND_ORIGIN` na naslov frontenda. Pri različnih domenah je treba dodatno prilagoditi nastavitve piškotkov in CSRF zaščito.
+
+**Javni naslov aplikacije:** še ni na voljo; po uspešni namestitvi dodajte povezavo `https://<ime-aplikacije>.fly.dev` in preverite njeno delovanje.
+
+### Priprava GitHub in Fly.io
+
+1. V forku v zavihku **Actions** omogočite GitHub Actions. V **Settings → Environments** ustvarite okolje `production`.
+2. Na Fly.io ustvarite aplikacijo in PostgreSQL. Na primer `fly apps create <ime-aplikacije>`, `fly mpg create` in `fly mpg attach <cluster-id> -a <ime-aplikacije>`. Preverite pogoje in stroške ponudnika. Povezava ustvari Fly skrivnost `DATABASE_URL`.
+3. V Fly.io nastavite tudi `JWT_SECRET` (naključno vrednost, dolgo vsaj 32 znakov). Skrivnosti naj ne bodo del kode ali Git repozitorija.
+4. V okolju GitHub `production` dodajte secret `FLY_API_TOKEN` za namestitev in variable `FLY_APP_NAME` z imenom Fly aplikacije. JWT in povezava do baze sta izvajalni skrivnosti na Fly.io, token pa je skrivnost GitHub okolja.
+5. Spremembe potisnite na ločeno vejo in ustvarite pull request v `main`. V zaščiti veje zahtevajte pull request in uspešne statusne preverbe `lint`, `build` in `test`. Razpoložljive preverbe se pojavijo po prvem zagonu workflowa.
+6. Za dokaz zaščite v ločenem PR-ju začasno povzročite napako linterja, preverite, da združitev ni mogoča, nato napako popravite in preverite uspešen CI. Po združitvi na `main` preverite job `deploy`, javni naslov in `/api/db-health`.
+
+Migracija ustvari tabele, ne pa uporabnikov ali kategorij. Te je treba pred uporabo varno pripraviti v nameščeni bazi. Lokalna seed skripta ustvari oziroma ponastavi tri **testne** račune z enakim geslom, zato ni primerna za produkcijsko okolje.
 
 ## Uporabljene tehnologije
 

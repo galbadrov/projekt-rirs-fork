@@ -3,7 +3,7 @@ import "./App.css";
 import TicketForm from "./components/TicketForm";
 import TicketList from "./components/TicketList";
 
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 type User = {
   id: number;
