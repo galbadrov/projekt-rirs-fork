@@ -1,0 +1,20 @@
+name: Pripravi Node.js in odvisnosti
+description: Namesti frontend in backend odvisnosti ter ustvari Prisma Client
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v6
+      with:
+        node-version: 24
+        cache: npm
+        cache-dependency-path: |
+          backend/package-lock.json
+          frontend/package-lock.json
+    - run: npm ci --prefix backend
+      shell: bash
+    - run: npm ci --prefix frontend
+      shell: bash
+    - run: npx prisma generate --config prisma7.config.ts
+      working-directory: backend
+      shell: bash
